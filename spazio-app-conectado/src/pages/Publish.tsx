@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, Lightbulb, MapPin } from 'lucide-react'
+import { ArrowRight, Check, Lightbulb } from 'lucide-react'
 import Layout from '../components/layout/Layout'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -9,6 +9,7 @@ import Checkbox from '../components/ui/Checkbox'
 import Alert from '../components/ui/Alert'
 import PhotosManager from '../features/publish/PhotosManager'
 import AvailabilityManager from '../features/publish/AvailabilityManager'
+import LocationPicker from '../features/publish/LocationPicker'
 import { useCreateSpace } from '../hooks/queries'
 import { useSesion } from '../session/SesionContext'
 import { useToast } from '../components/ui/toast'
@@ -34,6 +35,7 @@ export default function Publish() {
   const crear = useCreateSpace()
 
   const [direccion, setDireccion] = useState('Cra. 9 # 22-18, Bogotá')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [tipoVehiculo, setTipoVehiculo] = useState<TipoVehiculo>('carro')
   const [precioHora, setPrecioHora] = useState(5000)
   const [cubierto, setCubierto] = useState(true)
@@ -66,6 +68,8 @@ export default function Publish() {
         condiciones,
         periodos,
         fotos,
+        lat: coords?.lat,
+        lng: coords?.lng,
       })
       if (res.rolAnfitrionActivado) {
         actualizarCuenta({ rolAnfitrion: true })
@@ -96,18 +100,13 @@ export default function Publish() {
             <h2 className="text-2xl font-bold text-ink">Información del espacio</h2>
 
             <div className="mt-5">
-              <label className="mb-2 block text-sm font-semibold text-ink" htmlFor="direccion">Dirección</label>
-              <div className="relative">
-                <input
-                  id="direccion"
-                  className="w-full rounded-lg border border-line bg-white px-4 py-3 pr-11 text-sm text-ink focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20"
-                  value={direccion}
-                  onChange={(e) => setDireccion(e.target.value)}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-subtle">
-                  <MapPin size={20} />
-                </span>
-              </div>
+              <LocationPicker
+                direccion={direccion}
+                onChange={(dir, c) => {
+                  setDireccion(dir)
+                  setCoords(c)
+                }}
+              />
             </div>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-2">

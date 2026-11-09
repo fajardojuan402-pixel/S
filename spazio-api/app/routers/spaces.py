@@ -22,6 +22,13 @@ def geocode_suggest(q: str = Query("")) -> list[GeocodeSuggestion]:
     return [GeocodeSuggestion(**s) for s in geocoding.suggest(q)]
 
 
+@router.get("/geocode/reverse", response_model=GeocodeResult)
+def geocode_reverse(lat: float = Query(...), lng: float = Query(...)) -> GeocodeResult:
+    """RF-03: coordenadas -> dirección (al mover el pin en el mapa de publicar)."""
+    label = geocoding.reverse(lat, lng)
+    return GeocodeResult(lat=lat, lng=lng, label=label)
+
+
 @router.get("/spaces/search", response_model=list[SpaceSummary])
 def search_spaces(
     db: DbSession,

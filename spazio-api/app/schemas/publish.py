@@ -16,6 +16,10 @@ class CreateSpaceRequest(BaseModel):
     condiciones: str = ""
     periodos: list[PeriodoInput] = Field(default_factory=list)
     fotos: list[str] = Field(default_factory=list, max_length=3)
+    # Coordenadas exactas del pin (opcionales). Si vienen, se usan tal cual;
+    # si no, el backend geocodifica la dirección.
+    lat: float | None = None
+    lng: float | None = None
 
 
 class CreateSpaceResponse(BaseModel):

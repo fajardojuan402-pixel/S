@@ -86,6 +86,9 @@ export class HttpApiClient implements ApiClient {
   suggestAddresses(q: string): Promise<GeocodeSuggestion[]> {
     return this.request(`/geocode/suggest?q=${encodeURIComponent(q)}`)
   }
+  reverseGeocode(lat: number, lng: number): Promise<GeocodeResult> {
+    return this.request(`/geocode/reverse?lat=${lat}&lng=${lng}`)
+  }
   searchSpaces(params: SearchParams): Promise<SpaceSummary[]> {
     const qs = new URLSearchParams({ q: params.q, radioKm: String(params.radioKm) })
     if (params.lat != null) qs.set('lat', String(params.lat))

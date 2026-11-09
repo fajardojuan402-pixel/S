@@ -103,3 +103,24 @@ def suggest(q: str, limit: int = 6) -> list[dict]:
         return sugerencias
     except (httpx.HTTPError, KeyError, ValueError, IndexError):
         return []
+
+
+def reverse(lat: float, lng: float) -> str:
+    """Geocodificación inversa: coordenadas -> dirección legible (Nominatim)."""
+    key = f"rev::{round(lat, 5)},{round(lng, 5)}"
+    cached = _cache.get(key)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+    try:
+        resp = httpx.get(
+            f"{settings.nominatim_url}/reverse",
+            params={"lat": lat, "lon": lng, "format": "json"},
+            headers={"User-Agent": "SPAZIO/1.0 (proyecto academico)"},
+            timeout=5.0,
+        )
+        data = resp.json()
+        label = data.get("display_name") or f"{lat:.5f}, {lng:.5f}"
+        _cache[key] = label  # type: ignore[assignment]
+        return label
+    except (httpx.HTTPError, KeyError, ValueError):
+        return f"{lat:.5f}, {lng:.5f}"

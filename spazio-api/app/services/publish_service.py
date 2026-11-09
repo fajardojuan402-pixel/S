@@ -44,7 +44,11 @@ def create_space(db: Session, host: User, body: CreateSpaceRequest) -> CreateSpa
     """RF-03: crea la publicación y activa el rol anfitrión en la primera."""
     rangos = _validar_periodos(body.periodos)
 
-    lat, lng, _ = geocoding.geocode(body.direccion)
+    # Usa las coordenadas del pin si vienen; si no, geocodifica la dirección.
+    if body.lat is not None and body.lng is not None:
+        lat, lng = body.lat, body.lng
+    else:
+        lat, lng, _ = geocoding.geocode(body.direccion)
     rol_antes = host.is_host
 
     space = Space(

@@ -144,6 +144,8 @@ export interface CreateSpaceRequest {
   condiciones: string
   periodos: PeriodoInput[]
   fotos: string[] // en el mock: data URLs; con backend: multipart
+  lat?: number
+  lng?: number
 }
 
 export interface CreateSpaceResponse {

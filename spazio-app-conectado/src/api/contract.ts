@@ -38,6 +38,7 @@ export interface ApiClient {
   // Geocodificación (RF-01)
   geocode(q: string): Promise<GeocodeResult>
   suggestAddresses(q: string): Promise<GeocodeSuggestion[]>
+  reverseGeocode(lat: number, lng: number): Promise<GeocodeResult>
 
   // Búsqueda y espacios (RF-01, RF-03)
   searchSpaces(params: SearchParams): Promise<SpaceSummary[]>

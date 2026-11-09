@@ -116,6 +116,10 @@ export class MockApiClient implements ApiClient {
     return delay({ lat: 4.6097, lng: -74.0817, label: q || 'Bogotá' })
   }
 
+  async reverseGeocode(lat: number, lng: number): Promise<GeocodeResult> {
+    return delay({ lat, lng, label: `${lat.toFixed(5)}, ${lng.toFixed(5)}` })
+  }
+
   async suggestAddresses(q: string): Promise<GeocodeSuggestion[]> {
     // En modo mock no hay geocoder real; devolvemos unas sugerencias de ejemplo.
     if (q.trim().length < 3) return delay([])
