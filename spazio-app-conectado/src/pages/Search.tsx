@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, ChevronDown, LocateFixed, MapPin, Search as SearchIcon, SearchX } from 'lucide-react'
+import { ArrowRight, ChevronDown, LocateFixed, Search as SearchIcon, SearchX } from 'lucide-react'
 import Layout from '../components/layout/Layout'
 import ParkingCard from '../features/search/ParkingCard'
 import MapPanel from '../features/search/MapPanel'
+import AddressAutocomplete from '../features/search/AddressAutocomplete'
 import Skeleton from '../components/ui/Skeleton'
 import Alert from '../components/ui/Alert'
 import Button from '../components/ui/Button'
@@ -53,6 +54,16 @@ export default function Search() {
     } finally {
       setBuscando(false)
     }
+  }
+
+  /** Busca directamente en un punto ya conocido (sugerencia elegida). */
+  const buscarEn = (lat: number, lng: number, label: string) => {
+    setGeoMsg(null)
+    setSelected(null)
+    setPlace(label)
+    setCoords(undefined)
+    setCentro({ lat, lng })
+    setQuery({ q: label, radioKm: radio, lat, lng })
   }
 
   const localizar = (auto = false) => {
@@ -124,17 +135,11 @@ export default function Search() {
         <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
           <div>
             <label className="mb-2 block text-sm font-semibold text-ink" htmlFor="place">Dirección o barrio</label>
-            <div className="relative">
-              <input
-                id="place"
-                className="w-full rounded-lg border border-line bg-white px-4 py-3 pr-11 text-sm text-ink focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20"
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-subtle">
-                <MapPin size={20} />
-              </span>
-            </div>
+            <AddressAutocomplete
+              value={place}
+              onChange={setPlace}
+              onPick={(s) => buscarEn(s.lat, s.lng, s.label)}
+            />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-ink" htmlFor="radio">Radio de búsqueda</label>

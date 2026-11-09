@@ -80,6 +80,12 @@ export interface GeocodeResult {
   label: string
 }
 
+export interface GeocodeSuggestion {
+  label: string
+  lat: number
+  lng: number
+}
+
 // ---------------------------------------------------------------------------
 // Búsqueda y espacios (RF-01, RF-03) — SDD M-01 / M-02
 // ---------------------------------------------------------------------------

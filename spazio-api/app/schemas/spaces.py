@@ -12,6 +12,12 @@ class GeocodeResult(BaseModel):
     label: str
 
 
+class GeocodeSuggestion(BaseModel):
+    label: str
+    lat: float
+    lng: float
+
+
 class Periodo(BaseModel):
     inicio: str  # ISO "2026-10-14T08:00"
     fin: str

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Query
 
 from app.deps import CurrentUser, DbSession
 from app.schemas.publish import CreateSpaceRequest, CreateSpaceResponse
-from app.schemas.spaces import GeocodeResult, SpaceDetail, SpaceSummary
+from app.schemas.spaces import GeocodeResult, GeocodeSuggestion, SpaceDetail, SpaceSummary
 from app.services import geocoding, publish_service, space_service
 
 router = APIRouter(tags=["spaces"])
@@ -14,6 +14,12 @@ def geocode(q: str = Query(...)) -> GeocodeResult:
     """RF-01: convierte una dirección/barrio en coordenadas (Nominatim)."""
     lat, lng, label = geocoding.geocode(q)
     return GeocodeResult(lat=lat, lng=lng, label=label)
+
+
+@router.get("/geocode/suggest", response_model=list[GeocodeSuggestion])
+def geocode_suggest(q: str = Query("")) -> list[GeocodeSuggestion]:
+    """RF-01: sugerencias de autocompletar para la barra de búsqueda."""
+    return [GeocodeSuggestion(**s) for s in geocoding.suggest(q)]
 
 
 @router.get("/spaces/search", response_model=list[SpaceSummary])

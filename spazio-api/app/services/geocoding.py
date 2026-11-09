@@ -20,14 +20,15 @@ def geocode(q: str) -> tuple[float, float, str]:
     if not q:
         return (*BOGOTA, "Bogotá")
 
-    # ¿Viene como "lat,lng" (ubicación del navegador)?
+    # ¿Viene como "lat,lng" (ubicación del navegador)? Solo si AMBAS partes
+    # son números (así "Calle 100, Bogotá" no se confunde con coordenadas).
     if "," in q:
-        parts = q.split(",")
-        try:
-            lat, lng = float(parts[0]), float(parts[1])
-            return (lat, lng, q)
-        except ValueError:
-            pass  # no eran coordenadas; seguimos con geocodificación
+        parts = [p.strip() for p in q.split(",")]
+        if len(parts) == 2:
+            try:
+                return (float(parts[0]), float(parts[1]), q)
+            except ValueError:
+                pass  # no eran coordenadas; seguimos con geocodificación
 
     key = q.lower()
     if key in _cache:
@@ -53,3 +54,52 @@ def geocode(q: str) -> tuple[float, float, str]:
 
     # Respaldo: centro de Bogotá.
     return (*BOGOTA, q)
+
+
+# Caja contenedora de Bogotá (viewbox) para sesgar las sugerencias a la ciudad.
+# left, top, right, bottom (lon/lat).
+_BOGOTA_VIEWBOX = "-74.25,4.84,-73.99,4.45"
+
+
+def suggest(q: str, limit: int = 6) -> list[dict]:
+    """Devuelve sugerencias de direcciones para autocompletar (RF-01).
+
+    Cada sugerencia: { label, lat, lng }. Sesgado a Bogotá con viewbox.
+    """
+    q = (q or "").strip()
+    if len(q) < 3:
+        return []
+
+    key = f"suggest::{q.lower()}"
+    cached = _cache.get(key)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+
+    try:
+        resp = httpx.get(
+            f"{settings.nominatim_url}/search",
+            params={
+                "q": q,
+                "format": "json",
+                "addressdetails": 0,
+                "limit": limit,
+                "countrycodes": "co",
+                "viewbox": _BOGOTA_VIEWBOX,
+                "bounded": 1,
+            },
+            headers={"User-Agent": "SPAZIO/1.0 (proyecto academico)"},
+            timeout=5.0,
+        )
+        data = resp.json()
+        sugerencias = [
+            {
+                "label": item.get("display_name", ""),
+                "lat": float(item["lat"]),
+                "lng": float(item["lon"]),
+            }
+            for item in data
+        ]
+        _cache[key] = sugerencias  # type: ignore[assignment]
+        return sugerencias
+    except (httpx.HTTPError, KeyError, ValueError, IndexError):
+        return []

@@ -17,6 +17,7 @@ import {
   type EstadoFiltro,
   type EstadoReserva,
   type GeocodeResult,
+  type GeocodeSuggestion,
   type LoginRequest,
   type LoginResponse,
   type MyBookingsResponse,
@@ -110,6 +111,17 @@ export class MockApiClient implements ApiClient {
 
   async geocode(q: string): Promise<GeocodeResult> {
     return delay({ lat: 4.6097, lng: -74.0817, label: q || 'Bogotá' })
+  }
+
+  async suggestAddresses(q: string): Promise<GeocodeSuggestion[]> {
+    // En modo mock no hay geocoder real; devolvemos unas sugerencias de ejemplo.
+    if (q.trim().length < 3) return delay([])
+    const base = [
+      { label: `${q} · Centro, Bogotá`, lat: 4.5981, lng: -74.0758 },
+      { label: `${q} · Chapinero, Bogotá`, lat: 4.6486, lng: -74.0629 },
+      { label: `${q} · Zona Norte, Bogotá`, lat: 4.69, lng: -74.05 },
+    ]
+    return delay(base)
   }
 
   // --- Búsqueda y espacios --------------------------------------------------

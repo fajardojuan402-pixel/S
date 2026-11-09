@@ -15,6 +15,7 @@ import {
   type CreateSpaceResponse,
   type EstadoFiltro,
   type GeocodeResult,
+  type GeocodeSuggestion,
   type LoginRequest,
   type LoginResponse,
   type MyBookingsResponse,
@@ -78,6 +79,9 @@ export class HttpApiClient implements ApiClient {
   }
   geocode(q: string): Promise<GeocodeResult> {
     return this.request(`/geocode?q=${encodeURIComponent(q)}`)
+  }
+  suggestAddresses(q: string): Promise<GeocodeSuggestion[]> {
+    return this.request(`/geocode/suggest?q=${encodeURIComponent(q)}`)
   }
   searchSpaces(params: SearchParams): Promise<SpaceSummary[]> {
     const qs = new URLSearchParams({ q: params.q, radioKm: String(params.radioKm) })
