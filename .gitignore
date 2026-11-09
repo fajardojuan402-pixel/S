@@ -1,0 +1,38 @@
+# === Secretos y entorno (NO subir) ===
+.env
+**/.env
+.env.*
+!**/.env.example
+
+# === Python ===
+**/__pycache__/
+*.pyc
+**/.venv/
+**/venv/
+*.egg-info/
+.pytest_cache/
+
+# === Node / frontend ===
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vite/
+*.local
+
+# === Builds y cachés varios ===
+**/tsconfig.tsbuildinfo
+
+# === Logs y temporales ===
+*.log
+/*.txt
+**/_*.py
+staged.txt
+
+# === SO / editor ===
+.DS_Store
+Thumbs.db
+
+# === Documentos fuente pesados del proyecto (ya versionados aparte) ===
+# (Los .md/.docx/.pdf de los documentos quedan fuera del repo de código)
+*.docx
+*.pdf

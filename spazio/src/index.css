@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-teal/40 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-teal text-white hover:bg-teal-600;
+  }
+  .btn-outline {
+    @apply btn border border-line bg-white text-ink hover:bg-canvas;
+  }
+  .btn-ghost {
+    @apply btn text-teal hover:bg-teal-50;
+  }
+  .field {
+    @apply w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-muted/70 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20;
+  }
+  .label {
+    @apply mb-2 block text-sm font-semibold text-navy;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-white shadow-card;
+  }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-wider text-teal;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal;
+  }
+  .chip-muted {
+    @apply inline-flex items-center rounded-full bg-canvas px-3 py-1 text-xs font-medium text-muted;
+  }
+}

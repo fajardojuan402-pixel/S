@@ -1,0 +1,15 @@
+# Rangos mínimos (no pins estrictos) para que pip elija versiones con ruedas
+# precompiladas para el intérprete instalado (evita compilar desde fuente).
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0.35
+psycopg[binary]>=3.2
+geoalchemy2>=0.15
+pydantic>=2.9
+pydantic-settings>=2.5
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.2
+python-multipart>=0.0.12
+httpx>=0.27
+email-validator>=2.2
