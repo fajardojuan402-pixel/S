@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, ChevronDown, LocateFixed, MapPin, Search as SearchIcon, SearchX } from 'lucide-react'
 import Layout from '../components/layout/Layout'
 import ParkingCard from '../features/search/ParkingCard'
@@ -15,9 +15,9 @@ const RADIOS = [1, 2, 5]
 
 /**
  * P-03 Búsqueda y resultados (RF-01). Barra con dirección + radio + "Ir",
- * ubicación opcional del navegador, lista con skeletons, estado "sin
- * resultados" (solo cuando aplica) con "Ampliar radio / Cambiar sitio" y
- * mapa ilustrativo con marcadores sincronizados a la tarjeta seleccionada.
+ * geolocalización automática del navegador (como Google Maps), lista con
+ * skeletons, estado "sin resultados" (solo cuando aplica) con "Ampliar radio /
+ * Cambiar sitio" y mapa real (Leaflet) con marcadores sincronizados a la tarjeta.
  */
 export default function Search() {
   const [place, setPlace] = useState('Centro, Bogotá')
@@ -33,23 +33,40 @@ export default function Search() {
     setQuery({ q: place, radioKm, lat: coords?.lat, lng: coords?.lng })
   }
 
-  const usarMiUbicacion = () => {
+  const localizar = (auto = false) => {
     setGeoMsg(null)
     if (!('geolocation' in navigator)) {
-      setGeoMsg('Tu navegador no permite compartir la ubicación.')
+      if (!auto) setGeoMsg('Tu navegador no permite compartir la ubicación.')
       return
     }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords
         setCoords({ lat: latitude, lng: longitude })
-        const geo = await api.geocode(`${latitude},${longitude}`)
-        setPlace(geo.label)
-        setQuery({ q: geo.label, radioKm: radio, lat: latitude, lng: longitude })
+        setQuery({ q: 'Mi ubicación', radioKm: radio, lat: latitude, lng: longitude })
+        try {
+          const geo = await api.geocode(`${latitude},${longitude}`)
+          setPlace(geo.label)
+        } catch {
+          setPlace('Mi ubicación')
+        }
       },
-      () => setGeoMsg('No pudimos obtener tu ubicación. Escribe una dirección.'),
+      () => {
+        // Si el usuario no da permiso: en modo automático no molestamos;
+        // en modo manual avisamos que escriba la dirección.
+        if (!auto) setGeoMsg('No pudimos obtener tu ubicación. Escribe una dirección.')
+      },
     )
   }
+
+  // Al entrar a Buscar, intenta ubicar al usuario automáticamente (como Google Maps).
+  const yaIntento = useRef(false)
+  useEffect(() => {
+    if (yaIntento.current) return
+    yaIntento.current = true
+    localizar(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const ampliarRadio = () => {
     const siguiente = RADIOS.find((r) => r > radio) ?? radio
@@ -118,7 +135,7 @@ export default function Search() {
         </div>
         <button
           type="button"
-          onClick={usarMiUbicacion}
+          onClick={() => localizar(false)}
           className="mt-4 inline-flex min-h-touch items-center gap-2 text-sm font-semibold text-teal hover:underline"
         >
           <LocateFixed size={16} /> Usar mi ubicación
@@ -189,7 +206,13 @@ export default function Search() {
           )}
         </div>
 
-        <MapPanel radioKm={query.radioKm} selected={selectedSpace} otros={resultados} />
+        <MapPanel
+          radioKm={query.radioKm}
+          selected={selectedSpace}
+          otros={resultados}
+          userCoords={coords}
+          onSelect={setSelected}
+        />
       </div>
     </Layout>
   )
