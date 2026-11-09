@@ -23,14 +23,36 @@ export default function Search() {
   const [place, setPlace] = useState('Centro, Bogotá')
   const [radio, setRadio] = useState(1)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>()
+  // Centro de la búsqueda: el punto al que el mapa debe moverse (dirección o "mi ubicación").
+  const [centro, setCentro] = useState<{ lat: number; lng: number } | undefined>()
   const [query, setQuery] = useState<SearchParams>({ q: 'Centro, Bogotá', radioKm: 1 })
   const [selected, setSelected] = useState<string | null>(null)
   const [geoMsg, setGeoMsg] = useState<string | null>(null)
+  const [buscando, setBuscando] = useState(false)
 
   const { data, isFetching, isError, refetch } = useSearchSpaces(query, true)
 
-  const lanzarBusqueda = (radioKm = radio) => {
-    setQuery({ q: place, radioKm, lat: coords?.lat, lng: coords?.lng })
+  /**
+   * Geocodifica la dirección escrita y mueve el mapa a ese punto antes de
+   * buscar (como Google: escribes la dirección y el mapa se va para allá).
+   */
+  const lanzarBusqueda = async (radioKm = radio) => {
+    setGeoMsg(null)
+    setSelected(null)
+    const texto = place.trim()
+    if (!texto) return
+    try {
+      setBuscando(true)
+      const geo = await api.geocode(texto)
+      const punto = { lat: geo.lat, lng: geo.lng }
+      setCentro(punto)
+      setCoords(undefined) // ya no es "mi ubicación", es la dirección buscada
+      setQuery({ q: texto, radioKm, lat: punto.lat, lng: punto.lng })
+    } catch {
+      setGeoMsg('No pudimos ubicar esa dirección. Intenta con otra.')
+    } finally {
+      setBuscando(false)
+    }
   }
 
   const localizar = (auto = false) => {
@@ -42,7 +64,9 @@ export default function Search() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords
-        setCoords({ lat: latitude, lng: longitude })
+        const punto = { lat: latitude, lng: longitude }
+        setCoords(punto)
+        setCentro(punto)
         setQuery({ q: 'Mi ubicación', radioKm: radio, lat: latitude, lng: longitude })
         try {
           const geo = await api.geocode(`${latitude},${longitude}`)
@@ -71,7 +95,8 @@ export default function Search() {
   const ampliarRadio = () => {
     const siguiente = RADIOS.find((r) => r > radio) ?? radio
     setRadio(siguiente)
-    lanzarBusqueda(siguiente)
+    // Reusa el centro ya calculado; solo amplía el radio.
+    setQuery((q) => ({ ...q, radioKm: siguiente }))
   }
 
   const resultados = data ?? []
@@ -129,8 +154,8 @@ export default function Search() {
               </span>
             </div>
           </div>
-          <button type="submit" className="btn-primary h-[50px] md:px-6">
-            Ir <SearchIcon size={18} />
+          <button type="submit" className="btn-primary h-[50px] md:px-6" disabled={buscando}>
+            {buscando ? 'Buscando…' : 'Ir'} <SearchIcon size={18} />
           </button>
         </div>
         <button
@@ -211,6 +236,7 @@ export default function Search() {
           selected={selectedSpace}
           otros={resultados}
           userCoords={coords}
+          centro={centro}
           onSelect={setSelected}
         />
       </div>

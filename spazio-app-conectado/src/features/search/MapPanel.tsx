@@ -38,27 +38,50 @@ const userIcon = L.divIcon({
   iconAnchor: [0, 0],
 })
 
-/** Ajusta el encuadre del mapa a los marcadores visibles cuando cambian. */
+/** Pin rojo del punto buscado (dirección escrita), estilo Google. */
+const searchIcon = L.divIcon({
+  className: 'spazio-search-pin',
+  html: `<div style="
+    transform: translate(-50%, -100%);
+    width:22px; height:22px; border-radius:50% 50% 50% 0;
+    background:#d93636; border:2px solid #fff; rotate:-45deg;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);"></div>`,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0],
+})
+
+/** Mueve/encaja el mapa cuando cambia la búsqueda, la selección o el centro. */
 function FitBounds({
   puntos,
   selected,
+  centro,
 }: {
   puntos: [number, number][]
   selected?: SpaceSummary
+  centro?: { lat: number; lng: number }
 }) {
   const map = useMap()
+
+  // Prioridad 1: si hay una tarjeta seleccionada, el mapa va a ese parqueadero.
   useEffect(() => {
-    if (selected) {
-      map.setView([selected.lat, selected.lng], 15, { animate: true })
-      return
-    }
-    if (puntos.length === 1) {
-      map.setView(puntos[0], 15, { animate: true })
-    } else if (puntos.length > 1) {
-      map.fitBounds(L.latLngBounds(puntos).pad(0.2), { animate: true })
+    if (selected) map.setView([selected.lat, selected.lng], 16, { animate: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id])
+
+  // Prioridad 2: al cambiar el centro de búsqueda (dirección o "mi ubicación"),
+  // el mapa se mueve a ese punto y encuadra los resultados cercanos.
+  useEffect(() => {
+    if (!centro) return
+    if (puntos.length >= 1) {
+      // Encuadra el centro + los parqueaderos para que todo quede visible.
+      const bounds = L.latLngBounds([[centro.lat, centro.lng], ...puntos])
+      map.fitBounds(bounds.pad(0.25), { animate: true, maxZoom: 16 })
+    } else {
+      map.setView([centro.lat, centro.lng], 15, { animate: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(puntos), selected?.id])
+  }, [centro?.lat, centro?.lng, JSON.stringify(puntos)])
+
   return null
 }
 
@@ -71,20 +94,23 @@ export default function MapPanel({
   selected,
   otros,
   userCoords,
+  centro,
   onSelect,
 }: {
   radioKm: number
   selected?: SpaceSummary
   otros: SpaceSummary[]
   userCoords?: { lat: number; lng: number }
+  /** Punto de la búsqueda (dirección escrita o ubicación), al que el mapa se mueve. */
+  centro?: { lat: number; lng: number }
   onSelect?: (id: string) => void
 }) {
-  const centro = useMemo<[number, number]>(() => {
+  const centroInicial = useMemo<[number, number]>(() => {
+    if (centro) return [centro.lat, centro.lng]
     if (userCoords) return [userCoords.lat, userCoords.lng]
-    if (selected) return [selected.lat, selected.lng]
     if (otros[0]) return [otros[0].lat, otros[0].lng]
     return BOGOTA
-  }, [userCoords, selected, otros])
+  }, [centro, userCoords, otros])
 
   const puntos = useMemo<[number, number][]>(() => {
     const p = otros.map((s) => [s.lat, s.lng] as [number, number])
@@ -95,7 +121,7 @@ export default function MapPanel({
   return (
     <div className="relative min-h-[520px] overflow-hidden rounded-xl border border-line">
       <MapContainer
-        center={centro}
+        center={centroInicial}
         zoom={14}
         scrollWheelZoom
         style={{ height: '100%', width: '100%', minHeight: 520 }}
@@ -105,10 +131,18 @@ export default function MapPanel({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {userCoords && (
+        {/* Pin del punto buscado (dirección). Si es la ubicación del usuario,
+            usa el punto azul; si es una dirección escrita, el pin de búsqueda. */}
+        {userCoords ? (
           <Marker position={[userCoords.lat, userCoords.lng]} icon={userIcon}>
             <Popup>Tu ubicación</Popup>
           </Marker>
+        ) : (
+          centro && (
+            <Marker position={[centro.lat, centro.lng]} icon={searchIcon}>
+              <Popup>Tu búsqueda</Popup>
+            </Marker>
+          )
         )}
 
         {otros.map((s) => (
@@ -133,7 +167,7 @@ export default function MapPanel({
           </Marker>
         ))}
 
-        <FitBounds puntos={puntos} selected={selected} />
+        <FitBounds puntos={puntos} selected={selected} centro={centro} />
       </MapContainer>
 
       <span className="pointer-events-none absolute bottom-2 right-3 z-[500] rounded bg-white/80 px-2 py-0.5 text-xs text-subtle">
