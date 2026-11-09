@@ -26,6 +26,7 @@
 *.log
 /*.txt
 **/_*.py
+_*.bat
 staged.txt
 
 # === SO / editor ===
