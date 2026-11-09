@@ -181,6 +181,25 @@ export interface PayResponse {
   estado: EstadoReserva
 }
 
+// --- Wompi ---
+export interface WompiCheckout {
+  publicKey: string
+  reference: string
+  amountInCents: number
+  currency: string
+  signature: string
+}
+
+export interface WompiProcessRequest {
+  transactionId: string
+  paymentMethod?: string
+}
+
+export interface WompiProcessResponse {
+  estado: EstadoReserva
+  wompiStatus: string
+}
+
 export interface BookingEspacio {
   id: string
   titulo: string

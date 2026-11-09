@@ -19,8 +19,10 @@ from app.schemas.bookings import (
     CreateBookingResponse,
     MyBookingsResponse,
     PayResponse,
+    WompiCheckoutResponse,
+    WompiProcessResponse,
 )
-from app.services import payment_gateway
+from app.services import payment_gateway, wompi_gateway
 from app.services.booking_mapping import estado_api
 
 
@@ -130,6 +132,74 @@ def pay_booking(db: Session, user_id, booking_id: str, escenario: str) -> PayRes
 
     db.commit()
     return PayResponse(estado=estado_api(booking.status))
+
+
+# --- Pago con Wompi (sandbox) ------------------------------------------------
+
+def wompi_checkout(db: Session, user_id, booking_id: str) -> WompiCheckoutResponse:
+    """Prepara los datos firmados para abrir el widget de Wompi (RF-06)."""
+    booking = db.get(Booking, booking_id)
+    if booking is None or str(booking.user_id) != str(user_id):
+        raise ApiError(404, "not_found", "Reserva no encontrada.")
+
+    _expirar_si_vencio(db, booking)
+    if booking.status != "PENDING_PAYMENT":
+        raise ApiError(409, "not_payable", "La reserva ya no está pendiente de pago.")
+
+    # Wompi exige una referencia única por transacción. Usamos el id de la
+    # reserva + el timestamp para permitir reintentos.
+    referencia = f"spazio-{booking.id}-{int(_now().timestamp())}"
+    monto_centavos = int(round(float(booking.total_amount) * 100))
+    firma = wompi_gateway.generar_firma(referencia, monto_centavos, "COP")
+
+    # Guardamos la referencia en el pago para reconciliar luego.
+    payment = db.scalar(select(Payment).where(Payment.booking_id == booking.id))
+    if payment:
+        payment.gateway_reference = referencia
+        db.commit()
+
+    return WompiCheckoutResponse(
+        publicKey=settings.wompi_public_key,
+        reference=referencia,
+        amountInCents=monto_centavos,
+        currency="COP",
+        signature=firma,
+    )
+
+
+def wompi_process(db: Session, user_id, booking_id: str, transaction_id: str, metodo: str | None) -> WompiProcessResponse:
+    """Verifica la transacción en Wompi y confirma/expira la reserva (RF-07).
+
+    Consulta el estado REAL en la API de Wompi (no confía en el frontend).
+    """
+    booking = db.get(Booking, booking_id)
+    if booking is None or str(booking.user_id) != str(user_id):
+        raise ApiError(404, "not_found", "Reserva no encontrada.")
+
+    data = wompi_gateway.consultar_transaccion(transaction_id)
+    wompi_status = (data.get("status") or "ERROR").upper()
+
+    payment = db.scalar(select(Payment).where(Payment.booking_id == booking.id))
+
+    if wompi_status == "APPROVED":
+        booking.status = "CONFIRMED"
+        if payment:
+            payment.status = "APPROVED"
+            payment.gateway_reference = transaction_id
+            payment.payment_method = metodo or data.get("payment_method_type")
+    elif wompi_status == "PENDING":
+        # Dejamos la reserva pendiente; el frontend puede reconsultar.
+        if payment:
+            payment.gateway_reference = transaction_id
+    else:  # DECLINED, VOIDED, ERROR
+        booking.status = "EXPIRED"
+        if payment:
+            payment.status = "REJECTED"
+            payment.gateway_reference = transaction_id
+            payment.payment_method = metodo
+
+    db.commit()
+    return WompiProcessResponse(estado=estado_api(booking.status), wompiStatus=wompi_status)
 
 
 def get_booking(db: Session, user_id, booking_id: str) -> BookingStatus:

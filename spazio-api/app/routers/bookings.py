@@ -11,6 +11,9 @@ from app.schemas.bookings import (
     MyBookingsResponse,
     PayRequest,
     PayResponse,
+    WompiCheckoutResponse,
+    WompiProcessRequest,
+    WompiProcessResponse,
 )
 from app.services import booking_service
 
@@ -25,8 +28,22 @@ def create_booking(body: CreateBookingRequest, db: DbSession, user: CurrentUser)
 
 @router.post("/{booking_id}/pay", response_model=PayResponse)
 def pay_booking(booking_id: str, body: PayRequest, db: DbSession, user: CurrentUser) -> PayResponse:
-    """RF-07: pago simulado (APROBADO/RECHAZADO/SIN_RESPUESTA)."""
+    """RF-07: pago simulado por escenario (modo demo sin Wompi)."""
     return booking_service.pay_booking(db, user.id, booking_id, body.escenario)
+
+
+@router.post("/{booking_id}/wompi/checkout", response_model=WompiCheckoutResponse)
+def wompi_checkout(booking_id: str, db: DbSession, user: CurrentUser) -> WompiCheckoutResponse:
+    """RF-06: datos firmados para abrir el widget de Wompi (sandbox)."""
+    return booking_service.wompi_checkout(db, user.id, booking_id)
+
+
+@router.post("/{booking_id}/wompi/process", response_model=WompiProcessResponse)
+def wompi_process(
+    booking_id: str, body: WompiProcessRequest, db: DbSession, user: CurrentUser
+) -> WompiProcessResponse:
+    """RF-07: verifica la transacción en Wompi y confirma/expira la reserva."""
+    return booking_service.wompi_process(db, user.id, booking_id, body.transactionId, body.paymentMethod)
 
 
 @router.get("/me", response_model=MyBookingsResponse)

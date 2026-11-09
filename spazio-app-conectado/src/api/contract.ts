@@ -22,6 +22,9 @@ import type {
   SearchParams,
   SpaceDetail,
   SpaceSummary,
+  WompiCheckout,
+  WompiProcessRequest,
+  WompiProcessResponse,
 } from './types'
 
 export { AvailabilityConflict }
@@ -46,6 +49,8 @@ export interface ApiClient {
   // Reservas y pago (RF-06, RF-07, RF-08, RF-15)
   createBooking(body: CreateBookingRequest): Promise<CreateBookingResponse>
   payBooking(id: string, body: PayRequest): Promise<PayResponse>
+  wompiCheckout(id: string): Promise<WompiCheckout>
+  wompiProcess(id: string, body: WompiProcessRequest): Promise<WompiProcessResponse>
   getBooking(id: string): Promise<BookingStatus>
   releaseHold(id: string): Promise<void>
   myBookings(estado?: EstadoFiltro): Promise<MyBookingsResponse>

@@ -25,6 +25,9 @@ import {
   type SearchParams,
   type SpaceDetail,
   type SpaceSummary,
+  type WompiCheckout,
+  type WompiProcessRequest,
+  type WompiProcessResponse,
 } from './types'
 
 const STORAGE_KEY = 'spazio.sesion'
@@ -100,6 +103,12 @@ export class HttpApiClient implements ApiClient {
   }
   payBooking(id: string, body: PayRequest): Promise<PayResponse> {
     return this.request(`/bookings/${id}/pay`, { method: 'POST', body: JSON.stringify(body) })
+  }
+  wompiCheckout(id: string): Promise<WompiCheckout> {
+    return this.request(`/bookings/${id}/wompi/checkout`, { method: 'POST' })
+  }
+  wompiProcess(id: string, body: WompiProcessRequest): Promise<WompiProcessResponse> {
+    return this.request(`/bookings/${id}/wompi/process`, { method: 'POST', body: JSON.stringify(body) })
   }
   getBooking(id: string): Promise<BookingStatus> {
     return this.request(`/bookings/${id}`)

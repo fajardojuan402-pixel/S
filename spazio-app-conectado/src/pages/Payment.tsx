@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Info } from 'lucide-react'
+import { ArrowLeft, Info, ShieldCheck } from 'lucide-react'
 import Layout from '../components/layout/Layout'
 import Stepper from '../components/layout/Stepper'
 import Button from '../components/ui/Button'
@@ -9,31 +9,25 @@ import Alert from '../components/ui/Alert'
 import Skeleton from '../components/ui/Skeleton'
 import Countdown from '../components/ui/Countdown'
 import ReservaResumen from '../features/booking/ReservaResumen'
-import { useBooking, usePayBooking, useReleaseHold } from '../hooks/queries'
+import { useBooking, useReleaseHold } from '../hooks/queries'
 import { api } from '../api/client'
+import { useToast } from '../components/ui/toast'
 import { formatCOP } from '../lib/format'
-import type { EscenarioPago } from '../api/types'
-
-const ESCENARIOS: { id: EscenarioPago; titulo: string; desc: string }[] = [
-  { id: 'APROBADO', titulo: 'Aprobado', desc: 'El pago se aprueba y la reserva queda confirmada.' },
-  { id: 'RECHAZADO', titulo: 'Rechazado', desc: 'El pago es rechazado. Verás el resultado de error.' },
-  { id: 'SIN_RESPUESTA', titulo: 'Sin respuesta / error', desc: 'Simula una falta de respuesta o un error en el pago.' },
-]
+import type { WompiTransaction } from '../features/booking/wompi'
 
 /**
- * P-05 Pago simulado (RF-06, RF-07). Aviso de pago simulado, 3 radio-cards de
- * escenario, resumen de reserva y temporizador de 10 min alimentado por
- * segundosRestantes del servidor. "Cambiar horario" libera la retención (DELETE /hold).
+ * P-05 Pago con Wompi (sandbox) (RF-06, RF-07). Abre el widget oficial de Wompi
+ * con los datos firmados por el backend; al terminar, el backend verifica la
+ * transacción y confirma o libera la reserva. El pago es de prueba (sandbox).
  */
 export default function Payment() {
   const { bookingId } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const { data: booking, isLoading, isError } = useBooking(bookingId)
-  const pagar = usePayBooking()
   const releaseHold = useReleaseHold()
-  const [escenario, setEscenario] = useState<EscenarioPago>('APROBADO')
+  const [procesando, setProcesando] = useState(false)
 
-  // Si la reserva ya expiró (al cargar), vamos al resultado de expiración.
   useEffect(() => {
     if (booking?.estado === 'EXPIRADA') {
       navigate(`/confirmacion/${bookingId}?resultado=EXPIRADA`, { replace: true })
@@ -60,9 +54,48 @@ export default function Payment() {
     )
   }
 
-  const onPagar = async () => {
-    const res = await pagar.mutateAsync({ id: booking.id, body: { escenario } })
-    navigate(`/confirmacion/${booking.id}?resultado=${res.estado}`)
+  const procesarResultado = async (tx: WompiTransaction | undefined) => {
+    if (!tx) {
+      // El usuario cerró el widget sin pagar: seguimos en la pantalla.
+      setProcesando(false)
+      return
+    }
+    try {
+      const res = await api.wompiProcess(booking.id, {
+        transactionId: tx.id,
+        paymentMethod: tx.payment_method_type,
+      })
+      navigate(`/confirmacion/${booking.id}?resultado=${res.estado}`)
+    } catch {
+      toast.show('No pudimos verificar el pago. Inténtalo de nuevo.', 'danger')
+      setProcesando(false)
+    }
+  }
+
+  const onPagarWompi = async () => {
+    setProcesando(true)
+    try {
+      if (typeof window.WidgetCheckout === 'undefined') {
+        toast.show('No se pudo cargar el widget de pago. Revisa tu conexión.', 'danger')
+        setProcesando(false)
+        return
+      }
+      // El backend firma la transacción (no exponemos el integrity secret).
+      const cfg = await api.wompiCheckout(booking.id)
+      const checkout = new window.WidgetCheckout({
+        currency: cfg.currency,
+        amountInCents: cfg.amountInCents,
+        reference: cfg.reference,
+        publicKey: cfg.publicKey,
+        signature: { integrity: cfg.signature },
+      })
+      checkout.open((result) => {
+        void procesarResultado(result.transaction)
+      })
+    } catch {
+      toast.show('No pudimos iniciar el pago. Inténtalo de nuevo.', 'danger')
+      setProcesando(false)
+    }
   }
 
   const onCambiarHorario = async () => {
@@ -78,49 +111,29 @@ export default function Payment() {
 
       <p className="eyebrow">Reserva sin sorpresas</p>
       <h1 className="mt-2 text-4xl font-extrabold text-ink">Completa tu reserva</h1>
-      <p className="mt-3 text-subtle">Revisa el monto y elige un escenario para probar el flujo de pago.</p>
+      <p className="mt-3 text-subtle">Paga de forma segura con Wompi para confirmar tu espacio.</p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_minmax(0,380px)]">
         <div>
-          <Alert tone="sim" title="Pago simulado: no se cobra dinero real">
-            Estás en un entorno de prueba. No ingreses datos bancarios; el selector de escenario
-            solo simula el resultado de la reserva.
+          <Alert tone="sim" title="Pago de prueba (Wompi sandbox): no se cobra dinero real">
+            Estás en el ambiente de pruebas de Wompi. Usa una tarjeta de prueba, por ejemplo{' '}
+            <strong>4242 4242 4242 4242</strong>, cualquier fecha futura y CVC de 3 dígitos para un
+            pago aprobado. La tarjeta <strong>4111 1111 1111 1111</strong> simula un rechazo.
           </Alert>
 
-          {/* Selector de escenario */}
           <div className="card mt-6 p-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-ink">Escenario de prueba</h2>
-              <Badge tone="warn">Solo simulación</Badge>
+              <h2 className="text-2xl font-bold text-ink">Pagar con Wompi</h2>
+              <Badge tone="warn">Sandbox</Badge>
             </div>
-            <p className="mt-2 text-subtle">Selecciona qué debe ocurrir al pulsar Pagar.</p>
+            <p className="mt-2 text-subtle">
+              Al pulsar el botón se abre la ventana de pago de Wompi, donde puedes pagar con
+              tarjeta, PSE o Nequi. No guardamos datos de tu tarjeta.
+            </p>
 
-            <div className="mt-5 space-y-3" role="radiogroup" aria-label="Escenario de pago simulado">
-              {ESCENARIOS.map((s) => {
-                const active = escenario === s.id
-                return (
-                  <button
-                    key={s.id}
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setEscenario(s.id)}
-                    className={`flex w-full items-start justify-between gap-4 rounded-lg border p-4 text-left transition ${
-                      active ? 'border-teal bg-teal-soft' : 'border-line hover:border-teal/40'
-                    }`}
-                  >
-                    <span className="flex items-start gap-3">
-                      <span className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 ${active ? 'border-teal' : 'border-line'}`}>
-                        {active && <span className="h-2.5 w-2.5 rounded-full bg-teal" />}
-                      </span>
-                      <span>
-                        <span className="block font-bold text-ink">{s.titulo}</span>
-                        <span className="block text-sm text-subtle">{s.desc}</span>
-                      </span>
-                    </span>
-                    {active && <Check size={20} className="text-teal" />}
-                  </button>
-                )
-              })}
+            <div className="mt-5 flex items-center justify-between rounded-lg bg-canvas p-4">
+              <span className="font-semibold text-ink">Total a pagar</span>
+              <span className="text-2xl font-extrabold text-teal">{formatCOP(booking.monto)}</span>
             </div>
 
             <hr className="my-5 border-line" />
@@ -131,8 +144,8 @@ export default function Payment() {
               >
                 <ArrowLeft size={16} /> Cambiar horario
               </button>
-              <Button onClick={onPagar} loading={pagar.isPending} rightIcon={<ArrowRight size={18} />}>
-                Pagar {formatCOP(booking.monto)} · Simulado
+              <Button onClick={onPagarWompi} loading={procesando} leftIcon={<ShieldCheck size={18} />}>
+                Pagar {formatCOP(booking.monto)} con Wompi
               </Button>
             </div>
           </div>
@@ -159,7 +172,7 @@ export default function Payment() {
         <aside className="h-fit lg:sticky lg:top-28">
           <ReservaResumen booking={booking} />
           <p className="mt-4 flex items-center gap-2 text-sm text-warn">
-            <Info size={16} /> El monto mostrado es de prueba. No hay un cobro real.
+            <Info size={16} /> Pago de prueba de Wompi. No hay un cobro real.
           </p>
         </aside>
       </div>

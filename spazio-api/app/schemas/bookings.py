@@ -26,6 +26,28 @@ class PayResponse(BaseModel):
     estado: str
 
 
+# --- Wompi (sandbox) ---
+
+class WompiCheckoutResponse(BaseModel):
+    """Datos que el frontend necesita para abrir el widget de Wompi."""
+    publicKey: str
+    reference: str
+    amountInCents: int
+    currency: str
+    signature: str
+
+
+class WompiProcessRequest(BaseModel):
+    """Lo que el frontend envía tras pagar en el widget."""
+    transactionId: str
+    paymentMethod: str | None = None
+
+
+class WompiProcessResponse(BaseModel):
+    estado: str  # CONFIRMADA / EXPIRADA / PENDIENTE_PAGO
+    wompiStatus: str  # APPROVED / DECLINED / VOIDED / ERROR / PENDING
+
+
 class BookingEspacio(BaseModel):
     id: str
     titulo: str

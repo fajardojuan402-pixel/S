@@ -27,6 +27,9 @@ import {
   type SearchParams,
   type SpaceDetail,
   type SpaceSummary,
+  type WompiCheckout,
+  type WompiProcessRequest,
+  type WompiProcessResponse,
 } from '../types'
 import { calcularMonto, calcularReembolso } from '../../lib/pricing'
 import { hoursBetween } from '../../lib/time'
@@ -269,6 +272,25 @@ export class MockApiClient implements ApiClient {
       })
     }
     return delay({ estado: b.estado })
+  }
+
+  async wompiCheckout(id: string): Promise<WompiCheckout> {
+    const b = this.bookings.get(id)
+    if (!b) throw new ApiException(404, { code: 'not_found', message: 'Reserva no encontrada.' })
+    return delay({
+      publicKey: 'pub_test_mock',
+      reference: `spazio-${id}-${Date.now()}`,
+      amountInCents: Math.round(b.monto * 100),
+      currency: 'COP',
+      signature: 'mock-signature',
+    })
+  }
+
+  async wompiProcess(id: string, body: WompiProcessRequest): Promise<WompiProcessResponse> {
+    // En mock aprobamos siempre (no hay widget real).
+    const res = await this.payBooking(id, { escenario: 'APROBADO' })
+    void body
+    return { estado: res.estado, wompiStatus: 'APPROVED' }
   }
 
   async getBooking(id: string): Promise<BookingStatus> {

@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     nominatim_url: str = "https://nominatim.openstreetmap.org"
 
+    # Wompi (sandbox). La llave pública la consume el frontend; la privada y el
+    # secreto de integridad SOLO el backend. base_url usa el sandbox por defecto.
+    wompi_base_url: str = "https://sandbox.wompi.co/v1"
+    wompi_public_key: str = ""
+    wompi_private_key: str = ""
+    wompi_integrity_secret: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
