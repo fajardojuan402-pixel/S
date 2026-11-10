@@ -1,35 +1,47 @@
 # Blueprint de Render para SPAZIO (backend + frontend).
-# La base de datos NO va aquí: usa Supabase (tiene PostGIS) y pon su
-# connection string en DATABASE_URL del backend.
+#
+# El backend es el de @sansanchez2090 (FastAPI async + Poetry), extendido en
+# este repo con geocoding (OpenStreetMap/Nominatim) y el Widget de pago Wompi.
+# La base de datos NO va aquí: usa Supabase (tiene PostGIS) y pon su connection
+# string ASÍNCRONA en DATABASE_URL (postgresql+asyncpg://...).
 #
 # Cómo usar: en Render → New → Blueprint → conecta este repo. Render crea
 # ambos servicios. Luego rellena las variables marcadas como sync:false.
 
 services:
-  # ---------- Backend (FastAPI) ----------
+  # ---------- Backend (FastAPI async, Poetry) ----------
   - type: web
     name: spazio-api
     runtime: python
-    rootDir: spazio-api
+    rootDir: spazio-backend
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Poetry instala las dependencias del pyproject.toml en el entorno de Render.
+    buildCommand: pip install poetry && poetry install --no-root
+    startCommand: poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.6
+        value: 3.11.9
+      # Connection string ASÍNCRONA de Supabase: postgresql+asyncpg://USER:PASS@HOST:5432/postgres
       - key: DATABASE_URL
-        sync: false          # pega aquí la connection string de Supabase
-      - key: JWT_SECRET
-        generateValue: true  # Render genera una clave segura
-      - key: JWT_EXPIRE_MINUTES
-        value: "720"
-      - key: BOOKING_HOLD_MINUTES
-        value: "10"
-      - key: NOMINATIM_URL
-        value: https://nominatim.openstreetmap.org
-      - key: CORS_ORIGINS
-        sync: false          # pon aquí la URL del frontend (https://spazio-web.onrender.com)
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true  # Render genera una clave JWT segura
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"       # 7 días
+      # --- Wompi Sandbox (Widget de Checkout real) ---
+      - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
+        sync: false
+      - key: WOMPI_INTEGRITY_SECRET
+        sync: false
+      - key: WOMPI_BASE_URL
+        value: https://sandbox.wompi.co/v1
+      - key: WOMPI_CURRENCY
+        value: COP
 
   # ---------- Frontend (sitio estático) ----------
   - type: web
@@ -43,7 +55,7 @@ services:
       - key: VITE_USE_MOCK
         value: "false"
       - key: VITE_API_URL
-        sync: false          # pon aquí la URL del backend (https://spazio-api.onrender.com)
+        sync: false          # URL del backend, p. ej. https://spazio-api.onrender.com
     routes:
       - type: rewrite
         source: /*

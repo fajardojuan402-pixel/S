@@ -25,7 +25,10 @@
 # === Logs y temporales ===
 *.log
 /*.txt
+# Scripts temporales que empiezan con guion bajo (p. ej. _routes.py, _check.py),
+# pero SIN excluir los __init__.py reales de los paquetes Python.
 **/_*.py
+!**/__init__.py
 _*.bat
 staged.txt
 

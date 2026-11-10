@@ -11,5 +11,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/tests/setup.ts',
     css: false,
+    // Las pruebas usan el ApiClient mock en memoria (no el backend real).
+    env: { VITE_USE_MOCK: 'true' },
   },
 })
