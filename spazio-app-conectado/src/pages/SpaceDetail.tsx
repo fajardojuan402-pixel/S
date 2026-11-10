@@ -158,7 +158,7 @@ export default function SpaceDetail() {
         </div>
 
         {/* Tarjeta de reserva */}
-        <aside className="card h-fit p-6 lg:sticky lg:top-28">
+        <aside className="card h-fit p-6">
           <div className="flex items-start justify-between">
             <p className="text-3xl font-extrabold text-teal">
               {formatCOP(space.precioHora)}
