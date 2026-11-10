@@ -109,29 +109,28 @@ export default function SpaceDetail() {
         <span className="text-teal">· A {space.distanciaKm.toLocaleString('es-CO')} km de tu búsqueda</span>
       </p>
 
-      {/* Galería */}
-      <div className="mt-6 grid gap-4 lg:h-[420px] lg:grid-cols-[1.6fr_1fr]">
-        <div className="relative h-64 overflow-hidden rounded-xl lg:h-full">
-          <img src={space.fotos[principal]} alt={space.titulo} className="h-full w-full object-cover" />
+      {/* Galería: foto principal con relación de aspecto fija + tira de miniaturas */}
+      <div className="mt-6">
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl">
+          <img src={space.fotos[principal]} alt={space.titulo} className="absolute inset-0 h-full w-full object-cover" />
           <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-lg bg-white/95 px-3 py-1.5 text-sm font-semibold text-ink">
             <Images size={16} /> Foto {principal + 1} de {space.fotos.length}
           </span>
         </div>
-        <div className="grid h-full grid-rows-2 gap-4">
-          {space.fotos
-            .map((p, i) => ({ p, i }))
-            .filter(({ i }) => i !== principal)
-            .slice(0, 2)
-            .map(({ p, i }) => (
-              <button
-                key={i}
-                onClick={() => setPrincipal(i)}
-                className="h-full overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-teal"
-                aria-label={`Ver foto ${i + 1}`}
-              >
-                <img src={p} alt={`Vista ${i + 1}`} className="h-full w-full object-cover" />
-              </button>
-            ))}
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {space.fotos.slice(0, 3).map((p, i) => (
+            <button
+              key={i}
+              onClick={() => setPrincipal(i)}
+              className={`relative aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal ${
+                i === principal ? 'ring-2 ring-teal' : ''
+              }`}
+              aria-label={`Ver foto ${i + 1}`}
+              aria-current={i === principal}
+            >
+              <img src={p} alt={`Vista ${i + 1}`} className="absolute inset-0 h-full w-full object-cover" />
+            </button>
+          ))}
         </div>
       </div>
 
