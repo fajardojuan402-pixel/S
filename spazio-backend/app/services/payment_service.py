@@ -92,11 +92,6 @@ async def process_simulated_payment(
 async def _get_payable_booking(
     db: AsyncSession, user_id: UUID, booking_id: UUID
 ) -> Booking:
-    """Obtiene la reserva del usuario validando que sea pagable (RF-07).
-
-    Lanza 404 si no existe, 400 si ya está confirmada/en estado no pagable, y
-    marca EXPIRED + 400 si venció la retención de 10 minutos.
-    """
     booking_result = await db.execute(
         select(Booking).where(Booking.id == booking_id, Booking.user_id == user_id)
     )
@@ -135,11 +130,6 @@ async def _get_payable_booking(
 async def create_wompi_checkout(
     db: AsyncSession, user_id: UUID, booking_id: UUID
 ) -> WompiCheckoutResponse:
-    """Genera la referencia y la firma de integridad para abrir el Widget de Wompi.
-
-    No cobra nada todavía: solo entrega al frontend los datos firmados que Wompi
-    exige. El pago real se confirma luego con `verify_wompi_payment`.
-    """
     booking = await _get_payable_booking(db, user_id, booking_id)
 
     reference = wompi_gateway.build_reference(booking.id)
@@ -158,18 +148,10 @@ async def create_wompi_checkout(
 async def verify_wompi_payment(
     db: AsyncSession, user_id: UUID, booking_id: UUID, transaction_id: str
 ) -> Payment:
-    """Consulta a Wompi el estado real de la transacción y confirma la reserva.
-
-    - APPROVED  -> pago APPROVED y reserva CONFIRMED.
-    - cualquier otro estado -> pago REJECTED; la reserva sigue PENDING_PAYMENT
-      hasta que el usuario reintente o venza la retención (paso de expiración).
-    """
     booking = await _get_payable_booking(db, user_id, booking_id)
 
-    # 1. Consultar la transacción real en Wompi
     tx = await wompi_gateway.get_transaction(transaction_id)
 
-    # 2. Validar que la transacción corresponde a ESTA reserva y a ESTE monto
     expected_reference = wompi_gateway.build_reference(booking.id)
     expected_cents = wompi_gateway.amount_to_cents(booking.total_amount)
     if tx.reference != expected_reference:
@@ -183,7 +165,6 @@ async def verify_wompi_payment(
             detail="El monto de la transacción no coincide con el de la reserva.",
         )
 
-    # 3. Obtener o crear el registro de pago
     payment_result = await db.execute(
         select(Payment).where(Payment.booking_id == booking.id)
     )
@@ -201,14 +182,11 @@ async def verify_wompi_payment(
     payment.gateway_reference = tx.id
     payment.payment_method = tx.payment_method_type or payment.payment_method
 
-    # 4. Aplicar el resultado real de Wompi
     if tx.is_approved:
         payment.status = PaymentStatus.APPROVED
         booking.status = BookingStatus.CONFIRMED
     else:
         payment.status = PaymentStatus.REJECTED
-        # La reserva sigue PENDING_PAYMENT: el usuario puede reintentar dentro
-        # de la ventana de retención (RF-07).
 
     await db.commit()
     await db.refresh(payment)

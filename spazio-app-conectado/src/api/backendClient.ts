@@ -1,14 +1,3 @@
-// Adaptador al backend de SPAZIO (FastAPI async, contrato en inglés bajo /api/v1).
-//
-// Traduce entre el contrato que consume el frontend (español camelCase, rutas
-// sin prefijo, distancias en km, estados en español) y el contrato real del
-// backend del compañero (inglés snake_case, rutas /api/v1/..., metros, estados
-// en inglés, registro y login en dos pasos, Wompi checkout + verify).
-//
-// Se usa cuando VITE_USE_MOCK=false. No modifica el backend ni sus modelos:
-// los campos que el modelo del backend no tiene (cubierto, tipoVehiculo) se
-// rellenan con valores por defecto sensatos en este adaptador.
-
 import type { ApiClient } from './contract'
 import {
   ApiException,
@@ -45,19 +34,13 @@ import {
 
 const STORAGE_KEY = 'spazio.sesion'
 
-// Bogotá, UTC-05:00 (sin horario de verano).
 const TZ_OFFSET = '-05:00'
 
-// Imágenes de relleno cuando un espacio no tiene fotos cargadas.
 const FOTOS_FALLBACK = [
   'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=800&q=60',
   'https://images.unsplash.com/photo-1470224114660-3f6686c562eb?auto=format&fit=crop&w=800&q=60',
   'https://images.unsplash.com/photo-1545179605-1296651e9d0a?auto=format&fit=crop&w=800&q=60',
 ]
-
-// ---------------------------------------------------------------------------
-// Tipos del contrato real del backend (solo los campos que usamos)
-// ---------------------------------------------------------------------------
 
 interface BackendToken {
   access_token: string
@@ -136,10 +119,6 @@ interface BackendPaymentResult {
   gateway_reference: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Utilidades de traducción
-// ---------------------------------------------------------------------------
-
 const ESTADO_MAP: Record<BackendBooking['status'], EstadoReserva> = {
   PENDING_PAYMENT: 'PENDIENTE_PAGO',
   CONFIRMED: 'CONFIRMADA',
@@ -151,27 +130,21 @@ function toEstado(status: BackendBooking['status']): EstadoReserva {
   return ESTADO_MAP[status] ?? 'PENDIENTE_PAGO'
 }
 
-/** "2026-10-14T10:00" (local Bogotá) -> "2026-10-14T10:00:00-05:00" (ISO con tz). */
 function toIsoBogota(fechaHora: string): string {
-  // Acepta "YYYY-MM-DDTHH:mm" o "YYYY-MM-DDTHH:mm:ss".
   const base = fechaHora.length === 16 ? `${fechaHora}:00` : fechaHora
   return `${base}${TZ_OFFSET}`
 }
 
-/** Fecha ISO del backend -> "YYYY-MM-DD" en hora de Bogotá. */
 function fechaParte(iso: string): string {
   return isoEnBogota(iso).slice(0, 10)
 }
 
-/** Fecha ISO del backend -> "HH:mm" en hora de Bogotá. */
 function horaParte(iso: string): string {
   return isoEnBogota(iso).slice(11, 16)
 }
 
-/** Convierte un ISO cualquiera a la representación local de Bogotá (sin tz). */
 function isoEnBogota(iso: string): string {
   const d = new Date(iso)
-  // Desplaza a UTC-5 y formatea como YYYY-MM-DDTHH:mm.
   const bogota = new Date(d.getTime() - 5 * 3600 * 1000)
   return bogota.toISOString().slice(0, 16)
 }
@@ -192,7 +165,6 @@ function fotosDe(space: BackendSpace): string[] {
   return [...fotos, ...FOTOS_FALLBACK].slice(0, 3)
 }
 
-/** Deriva un horario legible y la ventana de apertura a partir de los periodos. */
 function derivarHorario(periodos: Periodo[]): {
   horario: string
   horarioApertura: { desde: string; hasta: string }
@@ -200,7 +172,6 @@ function derivarHorario(periodos: Periodo[]): {
   if (periodos.length === 0) {
     return { horario: 'Horario por confirmar', horarioApertura: { desde: '00:00', hasta: '23:00' } }
   }
-  // Rango que cubre todos los periodos (apertura más temprana, cierre más tardío).
   let desde = '23:59'
   let hasta = '00:00'
   for (const p of periodos) {
@@ -225,8 +196,6 @@ function mapSummary(space: BackendSpaceNearby | BackendSpace, distanciaKm: numbe
         ).horario
       : 'Consultar disponibilidad',
     precioHora: space.price_per_hour,
-    // El modelo del backend no distingue tipo de vehículo ni techado:
-    // se usan valores por defecto (no se persisten en la BD del backend).
     tipoVehiculo: 'ambos' as TipoVehiculo,
     cubierto: false,
     foto: fotos[0],
@@ -238,7 +207,6 @@ function mapSummary(space: BackendSpaceNearby | BackendSpace, distanciaKm: numbe
 async function parseError(res: Response): Promise<ApiError> {
   try {
     const body = await res.json()
-    // FastAPI devuelve { detail: "..." } o { detail: [{ msg, loc }] }.
     const detail = body?.detail
     if (typeof detail === 'string') return { code: 'error', message: detail }
     if (Array.isArray(detail) && detail[0]?.msg) {
@@ -246,14 +214,10 @@ async function parseError(res: Response): Promise<ApiError> {
     }
     if (body?.message) return { code: body.code ?? 'error', message: body.message }
   } catch {
-    /* sin cuerpo JSON */
+    void 0
   }
   return { code: 'error', message: 'Ocurrió un error inesperado.' }
 }
-
-// ---------------------------------------------------------------------------
-// Cliente
-// ---------------------------------------------------------------------------
 
 export class BackendApiClient implements ApiClient {
   constructor(private baseUrl: string) {}
@@ -290,8 +254,6 @@ export class BackendApiClient implements ApiClient {
     return (await res.json()) as T
   }
 
-  // --- Auth: el backend separa registro y login; aquí lo unificamos --------
-
   async register(body: RegisterRequest): Promise<LoginResponse> {
     await this.request<BackendUser>('/users/register', {
       method: 'POST',
@@ -301,7 +263,6 @@ export class BackendApiClient implements ApiClient {
         password: body.password,
       }),
     })
-    // El registro no devuelve token: iniciamos sesión inmediatamente.
     return this.login({ email: body.email, password: body.password })
   }
 
@@ -310,7 +271,6 @@ export class BackendApiClient implements ApiClient {
       method: 'POST',
       body: JSON.stringify({ email: body.email, password: body.password }),
     })
-    // El login solo devuelve el token: pedimos el perfil para armar AuthUser.
     const me = await this.request<BackendUser>('/users/me', {}, token.access_token)
     const user: AuthUser = {
       id: me.id,
@@ -319,8 +279,6 @@ export class BackendApiClient implements ApiClient {
     }
     return { token: token.access_token, user }
   }
-
-  // --- Geocodificación ------------------------------------------------------
 
   async geocode(q: string): Promise<GeocodeResult> {
     const r = await this.request<{ address: string; latitude: number; longitude: number }>(
@@ -343,11 +301,7 @@ export class BackendApiClient implements ApiClient {
     return { lat: r.latitude, lng: r.longitude, label: r.address }
   }
 
-  // --- Búsqueda y espacios --------------------------------------------------
-
   async searchSpaces(params: SearchParams): Promise<SpaceSummary[]> {
-    // El backend busca por coordenadas y radio en metros. Si no vienen
-    // coordenadas, geocodificamos el texto primero.
     let lat = params.lat
     let lng = params.lng
     if (lat == null || lng == null) {
@@ -384,10 +338,7 @@ export class BackendApiClient implements ApiClient {
     }
   }
 
-  // --- Publicar: crea el espacio y luego cada periodo de disponibilidad -----
-
   async createSpace(body: CreateSpaceRequest): Promise<CreateSpaceResponse> {
-    // El backend exige lat/lng; si no vienen, geocodificamos la dirección.
     let lat = body.lat
     let lng = body.lng
     if (lat == null || lng == null) {
@@ -409,7 +360,6 @@ export class BackendApiClient implements ApiClient {
       }),
     })
 
-    // Cada periodo del front se registra como un periodo de disponibilidad.
     for (const p of body.periodos) {
       await this.request('/availabilities/', {
         method: 'POST',
@@ -423,8 +373,6 @@ export class BackendApiClient implements ApiClient {
 
     return { id: created.id, rolAnfitrionActivado: created.host_role_activated }
   }
-
-  // --- Reservas y pago ------------------------------------------------------
 
   async createBooking(body: CreateBookingRequest): Promise<CreateBookingResponse> {
     const booking = await this.request<BackendBooking>('/bookings/', {
@@ -443,7 +391,6 @@ export class BackendApiClient implements ApiClient {
   }
 
   async payBooking(id: string, body: PayRequest): Promise<PayResponse> {
-    // Flujo simulado del backend (no Wompi real): /payments/process.
     const simulated = body.escenario === 'APROBADO' ? 'APPROVED' : 'REJECTED'
     await this.request<BackendPaymentResult>('/payments/process', {
       method: 'POST',
@@ -499,12 +446,10 @@ export class BackendApiClient implements ApiClient {
   }
 
   async releaseHold(id: string): Promise<void> {
-    // El backend no tiene "liberar retención": cancelar la reserva pendiente
-    // libera el periodo. Si ya expiró, el backend responde error y lo ignoramos.
     try {
       await this.request(`/bookings/${id}/cancel`, { method: 'POST' })
     } catch {
-      /* la reserva ya no estaba vigente */
+      void 0
     }
   }
 
@@ -522,7 +467,7 @@ export class BackendApiClient implements ApiClient {
           direccion = space.address
           foto = fotosDe(space)[0]
         } catch {
-          /* el espacio pudo haberse eliminado */
+          void 0
         }
         const horasParaInicio = Math.max(
           0,
@@ -565,7 +510,6 @@ export class BackendApiClient implements ApiClient {
       0,
       (new Date(b.start_time).getTime() - Date.now()) / 3_600_000,
     )
-    // RN-12: 100% con 24 h o más de anticipación; 0% con menos.
     const pct = horasParaInicio >= 24 ? 100 : 0
     const monto = (b.total_amount * pct) / 100
     return { pct, monto, horasParaInicio }

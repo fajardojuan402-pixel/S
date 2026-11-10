@@ -17,11 +17,8 @@ class Settings(BaseSettings):
     # Pasarela de Pagos (Wompi Sandbox)
     WOMPI_PUBLIC_KEY: str = ""
     WOMPI_PRIVATE_KEY: str = ""
-    # Secreto de integridad para firmar las transacciones del Widget (SHA256)
     WOMPI_INTEGRITY_SECRET: str = ""
-    # URL base de la API de Wompi (sandbox por defecto)
     WOMPI_BASE_URL: str = "https://sandbox.wompi.co/v1"
-    # Moneda por defecto para las transacciones
     WOMPI_CURRENCY: str = "COP"
 
     # Supabase Storage

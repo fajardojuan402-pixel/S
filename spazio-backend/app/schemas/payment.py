@@ -26,20 +26,15 @@ class PaymentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- Wompi Widget de Checkout (pago real en Sandbox) ---
 class WompiCheckoutResponse(BaseModel):
-    """Datos que el frontend necesita para abrir el Widget de Wompi."""
-
     public_key: str
     currency: str
     amount_in_cents: int
     reference: str
-    signature: str  # Firma de integridad SHA256
+    signature: str
     redirect_url: Optional[str] = None
 
 
 class WompiPaymentVerify(BaseModel):
-    """El frontend envía el ID de la transacción que devolvió el Widget."""
-
     booking_id: UUID
     transaction_id: str

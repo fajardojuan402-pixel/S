@@ -27,8 +27,6 @@ async def wompi_checkout(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Devuelve la referencia y la firma de integridad (SHA256) que el frontend
-    necesita para abrir el Widget de Wompi y cobrar esta reserva."""
     return await create_wompi_checkout(
         db=db, user_id=current_user.id, booking_id=booking_id
     )
@@ -44,8 +42,6 @@ async def wompi_verify(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Consulta a Wompi el estado real de la transacción del Widget y confirma
-    (o no) la reserva según el resultado."""
     payment = await verify_wompi_payment(
         db=db,
         user_id=current_user.id,
@@ -64,10 +60,8 @@ async def wompi_verify(
 async def process_payment(
     payload: PaymentProcess,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # Usuario autenticado
+    current_user: User = Depends(get_current_user),
 ):
-    """Flujo de pago simulado del backend base (compatibilidad). Para el pago real
-    con el Widget de Wompi usa `/payments/checkout/{booking_id}` y `/payments/verify`."""
     payment = await process_simulated_payment(
         db=db, user_id=current_user.id, payload=payload
     )
