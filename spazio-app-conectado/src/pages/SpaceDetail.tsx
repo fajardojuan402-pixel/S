@@ -100,14 +100,14 @@ export default function SpaceDetail() {
       </p>
 
       {/* Galería */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="relative overflow-hidden rounded-xl">
-          <img src={space.fotos[principal]} alt={space.titulo} className="h-full max-h-[420px] w-full object-cover" />
+      <div className="mt-6 grid gap-4 lg:h-[420px] lg:grid-cols-[1.6fr_1fr]">
+        <div className="relative h-64 overflow-hidden rounded-xl lg:h-full">
+          <img src={space.fotos[principal]} alt={space.titulo} className="h-full w-full object-cover" />
           <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-lg bg-white/95 px-3 py-1.5 text-sm font-semibold text-ink">
             <Images size={16} /> Foto {principal + 1} de {space.fotos.length}
           </span>
         </div>
-        <div className="grid grid-rows-2 gap-4">
+        <div className="grid h-full grid-rows-2 gap-4">
           {space.fotos
             .map((p, i) => ({ p, i }))
             .filter(({ i }) => i !== principal)
@@ -116,7 +116,7 @@ export default function SpaceDetail() {
               <button
                 key={i}
                 onClick={() => setPrincipal(i)}
-                className="overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-teal"
+                className="h-full overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-teal"
                 aria-label={`Ver foto ${i + 1}`}
               >
                 <img src={p} alt={`Vista ${i + 1}`} className="h-full w-full object-cover" />

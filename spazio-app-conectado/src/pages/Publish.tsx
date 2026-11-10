@@ -14,6 +14,7 @@ import { useCreateSpace } from '../hooks/queries'
 import { useSesion } from '../session/SesionContext'
 import { useToast } from '../components/ui/toast'
 import { formatCOP } from '../lib/format'
+import { hoyISO } from '../lib/time'
 import type { PeriodoInput, TipoVehiculo } from '../api/types'
 
 const TIPS = [
@@ -44,7 +45,7 @@ export default function Publish() {
   )
   const [fotos, setFotos] = useState<string[]>([])
   const [periodos, setPeriodos] = useState<PeriodoInput[]>([
-    { fecha: '2026-10-14', desde: '08:00', hasta: '18:00' },
+    { fecha: hoyISO(), desde: '08:00', hasta: '18:00' },
   ])
 
   // Qué falta para poder publicar (RF-03).

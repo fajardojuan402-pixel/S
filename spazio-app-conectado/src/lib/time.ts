@@ -1,5 +1,12 @@
 // Cálculos de horario: horas completas, validación de rango y solapes (RN-14).
 
+/** Fecha de hoy en formato "YYYY-MM-DD" (hora local de Bogotá, UTC-5). */
+export function hoyISO(): string {
+  const ahora = new Date()
+  const bogota = new Date(ahora.getTime() - 5 * 3600 * 1000)
+  return bogota.toISOString().slice(0, 10)
+}
+
 /** Convierte "HH:mm" a minutos desde medianoche. */
 export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)

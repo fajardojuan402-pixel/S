@@ -4,7 +4,7 @@ import Badge from '../../components/ui/Badge'
 import Alert from '../../components/ui/Alert'
 import type { PeriodoInput } from '../../api/types'
 import { formatShortDate } from '../../lib/format'
-import { periodsOverlap, toMinutes } from '../../lib/time'
+import { hoyISO, periodsOverlap, toMinutes } from '../../lib/time'
 
 interface OverlapError {
   tipo: 'traslape' | 'invalido'
@@ -24,7 +24,7 @@ export default function AvailabilityManager({
   periodos: PeriodoInput[]
   onChange: (p: PeriodoInput[]) => void
 }) {
-  const [fecha, setFecha] = useState('2026-10-14')
+  const [fecha, setFecha] = useState(hoyISO())
   const [desde, setDesde] = useState('10:00')
   const [hasta, setHasta] = useState('13:00')
   const [error, setError] = useState<OverlapError | null>(null)
