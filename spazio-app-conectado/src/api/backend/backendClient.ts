@@ -1,7 +1,6 @@
-import type { ApiClient } from './contract'
+import type { ApiClient } from '../contract'
 import {
   ApiException,
-  type ApiError,
   type AuthUser,
   type BookingListItem,
   type BookingStatus,
@@ -13,7 +12,6 @@ import {
   type CreateSpaceRequest,
   type CreateSpaceResponse,
   type EstadoFiltro,
-  type EstadoReserva,
   type GeocodeResult,
   type GeocodeSuggestion,
   type LoginRequest,
@@ -26,198 +24,38 @@ import {
   type SearchParams,
   type SpaceDetail,
   type SpaceSummary,
-  type TipoVehiculo,
   type WompiCheckout,
   type WompiProcessRequest,
   type WompiProcessResponse,
+} from '../types'
+import type {
+  BackendAvailability,
+  BackendBooking,
+  BackendPaymentResult,
+  BackendSpace,
+  BackendSpaceCreate,
+  BackendSpaceNearby,
+  BackendToken,
+  BackendUser,
+  BackendWompiCheckout,
 } from './types'
+import {
+  derivarHorario,
+  fechaParte,
+  fotosDe,
+  horaParte,
+  horasEntre,
+  horasParaInicio,
+  isoEnBogota,
+  mapSummary,
+  parseError,
+  segundosRestantes,
+  toEstado,
+  toIsoBogota,
+  FOTOS_FALLBACK,
+} from './mappers'
 
 const STORAGE_KEY = 'spazio.sesion'
-
-const TZ_OFFSET = '-05:00'
-
-const FOTOS_FALLBACK = [
-  'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=800&q=60',
-  'https://images.unsplash.com/photo-1470224114660-3f6686c562eb?auto=format&fit=crop&w=800&q=60',
-  'https://images.unsplash.com/photo-1545179605-1296651e9d0a?auto=format&fit=crop&w=800&q=60',
-]
-
-interface BackendToken {
-  access_token: string
-  token_type: string
-}
-
-interface BackendUser {
-  id: string
-  email: string
-  full_name: string
-  is_host: boolean
-  created_at: string
-}
-
-interface BackendAvailability {
-  id: string
-  space_id: string
-  start_time: string
-  end_time: string
-}
-
-interface BackendSpace {
-  id: string
-  host_id: string
-  title: string | null
-  category: string
-  address: string
-  neighborhood: string | null
-  conditions: string | null
-  price_per_hour: number
-  latitude: number
-  longitude: number
-  photos: string[]
-  is_active: boolean
-}
-
-interface BackendSpaceNearby extends BackendSpace {
-  distance_meters: number
-  availabilities: { start_time: string; end_time: string }[]
-}
-
-interface BackendSpaceCreate extends BackendSpace {
-  host_role_activated: boolean
-}
-
-interface BackendBooking {
-  id: string
-  space_id: string
-  user_id: string
-  start_time: string
-  end_time: string
-  hourly_price_snapshot: number
-  total_amount: number
-  status: 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
-  locked_until: string
-  cancelled_at: string | null
-  created_at: string
-  is_cancellable?: boolean
-  cancellation_reason?: string | null
-  refund_percentage?: number | null
-  refund_amount?: number | null
-}
-
-interface BackendWompiCheckout {
-  public_key: string
-  currency: string
-  amount_in_cents: number
-  reference: string
-  signature: string
-}
-
-interface BackendPaymentResult {
-  message: string
-  payment_id: string
-  status: string
-  gateway_reference: string | null
-}
-
-const ESTADO_MAP: Record<BackendBooking['status'], EstadoReserva> = {
-  PENDING_PAYMENT: 'PENDIENTE_PAGO',
-  CONFIRMED: 'CONFIRMADA',
-  CANCELLED: 'CANCELADA',
-  EXPIRED: 'EXPIRADA',
-}
-
-function toEstado(status: BackendBooking['status']): EstadoReserva {
-  return ESTADO_MAP[status] ?? 'PENDIENTE_PAGO'
-}
-
-function toIsoBogota(fechaHora: string): string {
-  const base = fechaHora.length === 16 ? `${fechaHora}:00` : fechaHora
-  return `${base}${TZ_OFFSET}`
-}
-
-function fechaParte(iso: string): string {
-  return isoEnBogota(iso).slice(0, 10)
-}
-
-function horaParte(iso: string): string {
-  return isoEnBogota(iso).slice(11, 16)
-}
-
-function isoEnBogota(iso: string): string {
-  const d = new Date(iso)
-  const bogota = new Date(d.getTime() - 5 * 3600 * 1000)
-  return bogota.toISOString().slice(0, 16)
-}
-
-function horasEntre(startIso: string, endIso: string): number {
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
-  return Math.round((ms / 3_600_000) * 100) / 100
-}
-
-function segundosRestantes(lockedUntil: string): number {
-  const ms = new Date(lockedUntil).getTime() - Date.now()
-  return Math.max(0, Math.floor(ms / 1000))
-}
-
-function fotosDe(space: BackendSpace): string[] {
-  const fotos = (space.photos ?? []).filter(Boolean)
-  if (fotos.length >= 3) return fotos.slice(0, 3)
-  return [...fotos, ...FOTOS_FALLBACK].slice(0, 3)
-}
-
-function derivarHorario(periodos: Periodo[]): {
-  horario: string
-  horarioApertura: { desde: string; hasta: string }
-} {
-  if (periodos.length === 0) {
-    return { horario: 'Horario por confirmar', horarioApertura: { desde: '00:00', hasta: '23:00' } }
-  }
-  let desde = '23:59'
-  let hasta = '00:00'
-  for (const p of periodos) {
-    const d = p.inicio.slice(11, 16)
-    const h = p.fin.slice(11, 16)
-    if (d < desde) desde = d
-    if (h > hasta) hasta = h
-  }
-  return { horario: `${desde}–${hasta}`, horarioApertura: { desde, hasta } }
-}
-
-function mapSummary(space: BackendSpaceNearby | BackendSpace, distanciaKm: number): SpaceSummary {
-  const fotos = fotosDe(space)
-  return {
-    id: space.id,
-    titulo: space.title || 'Parqueadero en Bogotá',
-    direccion: space.address,
-    distanciaKm,
-    horario: 'availabilities' in space && space.availabilities.length > 0
-      ? derivarHorario(
-          space.availabilities.map((a) => ({ inicio: isoEnBogota(a.start_time), fin: isoEnBogota(a.end_time) })),
-        ).horario
-      : 'Consultar disponibilidad',
-    precioHora: space.price_per_hour,
-    tipoVehiculo: 'ambos' as TipoVehiculo,
-    cubierto: false,
-    foto: fotos[0],
-    lat: space.latitude,
-    lng: space.longitude,
-  }
-}
-
-async function parseError(res: Response): Promise<ApiError> {
-  try {
-    const body = await res.json()
-    const detail = body?.detail
-    if (typeof detail === 'string') return { code: 'error', message: detail }
-    if (Array.isArray(detail) && detail[0]?.msg) {
-      return { code: 'validation', message: String(detail[0].msg) }
-    }
-    if (body?.message) return { code: body.code ?? 'error', message: body.message }
-  } catch {
-    void 0
-  }
-  return { code: 'error', message: 'Ocurrió un error inesperado.' }
-}
 
 export class BackendApiClient implements ApiClient {
   constructor(private baseUrl: string) {}
@@ -326,13 +164,11 @@ export class BackendApiClient implements ApiClient {
       fin: isoEnBogota(a.end_time),
     }))
     const { horario, horarioApertura } = derivarHorario(periodos)
-    const fotos = fotosDe(space)
-    const summary = mapSummary(space, 0)
     return {
-      ...summary,
+      ...mapSummary(space, 0),
       horario,
       descripcion: space.conditions || 'Espacio de parqueo disponible en Bogotá.',
-      fotos,
+      fotos: fotosDe(space),
       periodos,
       horarioApertura,
     }
@@ -469,10 +305,6 @@ export class BackendApiClient implements ApiClient {
         } catch {
           void 0
         }
-        const horasParaInicio = Math.max(
-          0,
-          (new Date(b.start_time).getTime() - Date.now()) / 3_600_000,
-        )
         return {
           id: b.id,
           espacio: { id: b.space_id, titulo, direccion, foto },
@@ -484,7 +316,7 @@ export class BackendApiClient implements ApiClient {
           monto: b.total_amount,
           estado: toEstado(b.status),
           motivo: b.cancellation_reason ?? undefined,
-          horasParaInicio,
+          horasParaInicio: horasParaInicio(b.start_time),
         }
       }),
     )
@@ -506,13 +338,10 @@ export class BackendApiClient implements ApiClient {
 
   async cancelPreview(id: string): Promise<CancelPreviewResponse> {
     const b = await this.request<BackendBooking>(`/bookings/${id}`)
-    const horasParaInicio = Math.max(
-      0,
-      (new Date(b.start_time).getTime() - Date.now()) / 3_600_000,
-    )
-    const pct = horasParaInicio >= 24 ? 100 : 0
+    const horas = horasParaInicio(b.start_time)
+    const pct = horas >= 24 ? 100 : 0
     const monto = (b.total_amount * pct) / 100
-    return { pct, monto, horasParaInicio }
+    return { pct, monto, horasParaInicio: horas }
   }
 
   async cancelBooking(id: string): Promise<CancelResponse> {

@@ -2,7 +2,7 @@
 // VITE_USE_MOCK. El adaptador (backendClient) traduce el contrato del frontend
 // (español) al contrato del backend de SPAZIO (FastAPI async, inglés, /api/v1).
 import type { ApiClient } from './contract'
-import { BackendApiClient } from './backendClient'
+import { BackendApiClient } from './backend/backendClient'
 import { MockApiClient } from './mock/mockClient'
 
 const useMock = import.meta.env.VITE_USE_MOCK === 'true'
