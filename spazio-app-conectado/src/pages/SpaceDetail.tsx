@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CalendarDays, CalendarX, Car, Clock, Images, MapPin } from 'lucide-react'
 import Layout from '../components/layout/Layout'
@@ -10,7 +10,7 @@ import Skeleton from '../components/ui/Skeleton'
 import { useSpace, useCreateBooking } from '../hooks/queries'
 import { formatCOP, formatLongDate } from '../lib/format'
 import { calcularMonto } from '../lib/pricing'
-import { hoursBetween, isWholeHours, validarHorario } from '../lib/time'
+import { hoursBetween, hoyISO, isWholeHours, validarHorario } from '../lib/time'
 import { ApiException } from '../api/types'
 
 /**
@@ -26,10 +26,20 @@ export default function SpaceDetail() {
   const crearReserva = useCreateBooking()
 
   const [principal, setPrincipal] = useState(0)
-  const [fecha, setFecha] = useState('2026-10-14')
+  const [fecha, setFecha] = useState(hoyISO())
   const [desde, setDesde] = useState('10:00')
   const [hasta, setHasta] = useState('13:00')
   const [conflicto, setConflicto] = useState(false)
+
+  // Al cargar el espacio, propone por defecto la fecha del primer periodo
+  // disponible (su parte "YYYY-MM-DD"), para que la reserva caiga dentro del
+  // horario real y no quede en una fecha pasada.
+  useEffect(() => {
+    const primer = space?.periodos?.[0]
+    if (primer?.inicio) {
+      setFecha(primer.inicio.slice(0, 10))
+    }
+  }, [space])
 
   if (isLoading) {
     return (
